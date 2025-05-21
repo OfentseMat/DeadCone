@@ -182,10 +182,10 @@ namespace Rivet {
         double X = coords.first; //ln(1/theta))
         double Y = coords.second; //this is actually ln(kt)
         double Z = - log(declusts[idecl].z()); 
-        //double kT = declusts[idecl].kt();
+        double kT = declusts[idecl].kt();
         double E = exp(X + Y + Z);  //radiator energy
         
-        if (X > XMin && X < XMax && E > Erad && E < MaxJetPt) { 
+        if (X > XMin && X < XMax && E > Erad && E < MaxJetPt && kT > kTcut) { 
           //std::cout<<"E: "<<E<<std::endl;
           //std::cout<<"kT: "<<kT<<std::endl;
           _h_2Dbjets->fill(X,E); //fill bjets lund plane
@@ -201,7 +201,7 @@ namespace Rivet {
           //std::cout<<"j: "<<j<<std::endl;
           _h_hs[j]->fill(X);
         }  //end if statement
-        if (X > XMin && X < XMax && Z > ZMin && Z < ZMax) {
+        if (X > XMin && X < XMax && Z > ZMin && Z < ZMax && kT > kTcut) {
           _h_2Dlund->fill(X,Z); //fill angular sep histo
 
         }
