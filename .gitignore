@@ -1,0 +1,45 @@
+//PYTHIA
+*.cmnd
+*.log
+
+//RIVET
+*.plot
+*.info
+*.so
+
+//RIVET OUTPUT
+*.yoda
+*.dat
+*.py
+
+//Other files
+*.pdf
+*.png
+*.sh
+0.5
+2
+Bbeauty
+Blyte
+Final slices
+groomed
+groomed1
+incl
+Lbeauty
+light
+lite
+Llyte
+noTracks
+overLplane
+rivet-plots
+sum
+Bjets.cc
+DC.cc
+Inclusive.cc
+Lund.cc
+MC_DC.cc
+MC_DC4.cc
+Substructure.cc
+hub.cc
+test.cc
+
+
