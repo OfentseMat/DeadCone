@@ -29,8 +29,9 @@ namespace Rivet {
   double YMin = -5;
   double YMIN = 0.0;
   double ZMIN = 0;
-  double ZMAX = 4;
+  double ZMAX = 6;
   double YMax = 5;
+  double sdzg = 0.5;
   double ZMin = log(1/0.5);
   double ZMax = 8.6*log(1/0.5);
   double Erad = 0*GeV;
@@ -59,6 +60,8 @@ namespace Rivet {
       book(_h_jetPt, "Jet pT", histoSlice, MinJetPt, MaxJetPt); 
       book(_h_sdjetPt, "sd Jet pT", histoSlice, MinJetPt, MaxJetPt); 
       book(_h_delta, "delta", histoSlice, XMin, XMax);
+      book(_h_rg, "rg", histoSlice, XMin, XMax);
+      book(_h_zg, "zg", histoSlice, ZMIN, sdzg);
       book(_h_2Dlund, "lund", histoSlice, XMin, XMax, histoSlice, ZMIN, ZMAX); //Testing Leticia's method.
       book(_njets, "njets");
  
@@ -137,7 +140,7 @@ namespace Rivet {
       //std::cout<<"jetPt: "<< jetPt<<std::endl; 
       _h_jetPt->fill(jetPt/ GeV);   
 
-     /* //define sd parameters
+      //define sd parameters
       double z_cut = 0.10;
       double beta  = 1.0;
       fjcontrib::SoftDrop sd(beta, z_cut);
@@ -148,22 +151,24 @@ namespace Rivet {
 
       //because soft drop is a groomer (not a tagger), it should always return a soft-dropped jet
       assert(sd_j1 != 0); 
-      _h_sdjetPt->fill(sdpT/ GeV);*/
+      _h_sdjetPt->fill(sdpT/ GeV);
   
       //tracks 
-      const Particles& tracks = apply<ChargedFinalState>(event, "tracks").particlesByPt();
+      /*const Particles& tracks = apply<ChargedFinalState>(event, "tracks").particlesByPt();
       Particles intracks;  //declare tracks container     
 
       //analyse jet
 
       //find tracks in jet
       for (const Particle& p: tracks){
-        const double dr = deltaR(j1, p, PSEUDORAPIDITY);
+        const double dr = deltaR(sd_j1, p, PSEUDORAPIDITY);
         if (dr > jetR) continue;
         intracks.push_back(p);
         //std::cout<<" Track PID: "<< p.pid()<<std::endl;
       }
       //std::cout<<"intracks.size(): "<<intracks.size()<<std::endl;
+      //Particles constituents = sd_j1.constituents;  //declare tracks container  
+
 
       //re-cluster tracks with CA algorithm
       JetDefinition tjet_def(fastjet::cambridge_algorithm, 10);
@@ -171,24 +176,31 @@ namespace Rivet {
       vector<PseudoJet> tjets = fastjet::sorted_by_pt (tjet_cs.inclusive_jets(0.0));
 
       if(tjets.size() < 1) vetoEvent;  //CA must return at least 1 jet
-      //std::cout<<"tjets.size(): " <<tjets.size()<< std::endl;
+      //std::cout<<"tjets.size(): " <<tjets.size()<< std::endl;*/
+      double rg = sd_j1.structure_of<fjcontrib::SoftDrop>().delta_R();
+      double zg = sd_j1.structure_of<fjcontrib::SoftDrop>().symmetry();
+      double rg_p = -log(rg);
+
+      _h_rg->fill(rg_p);
+      _h_zg->fill(zg);
 
       //decluster jet with the lund generator
       fjcontrib::LundGenerator lund; //declare lund generator
-      vector<fjcontrib::LundDeclustering> declusts = lund(tjets[0]);  //decluster first pseudojet.
+      vector<fjcontrib::LundDeclustering> declusts = lund(sd_j1);  //decluster first pseudojet.
       //std::cout<<"declusts.size(): "<< declusts.size()<<std::endl;
       for (size_t idecl = 0; idecl < declusts.size(); ++idecl) {  //continue declustering jet till you reach core
         pair<double,double> coords = declusts[idecl].lund_coordinates(); //find lund coordinates for each declustering step
         double X = coords.first; //ln(1/theta))
         double Y = coords.second; //this is actually ln(kt)
         double Z = - log(declusts[idecl].z()); 
-        double kT = declusts[idecl].kt();
+        //double kT = declusts[idecl].kt();
         double E = exp(X + Y + Z);  //radiator energy
         
-        if (X > XMin && X < XMax && E > Erad && E < MaxJetPt && kT > kTcut) { 
+        if (X > XMin && X < XMax && E > Erad && E < MaxJetPt) { 
           //std::cout<<"E: "<<E<<std::endl;
           //std::cout<<"kT: "<<kT<<std::endl;
           _h_2Dbjets->fill(X,E); //fill bjets lund plane
+          _h_delta->fill(X); //fill bjets lund plane
           //_h_2Dlightjets->fill(X,Y); //fill lightjets lund plane
 
           double hdiv = (double)XMax/(double)slice;
@@ -201,7 +213,7 @@ namespace Rivet {
           //std::cout<<"j: "<<j<<std::endl;
           _h_hs[j]->fill(X);
         }  //end if statement
-        if (X > XMin && X < XMax && Z > ZMin && Z < ZMax && kT > kTcut) {
+        if (X > XMin && X < XMax && Z > ZMin && Z < ZMax) {
           _h_2Dlund->fill(X,Z); //fill angular sep histo
 
         }
@@ -226,11 +238,13 @@ namespace Rivet {
       scale(_h_hadroPt, scaling);
       scale(_njets, scaling);
       scale(_h_delta, scaling);
+      scale(_h_rg, scaling);
+      scale(_h_zg, scaling);
     }
   	private:
       Histo2DPtr _h_2Dbjets, _h_2Dlightjets, _h_2Dlund;
       vector<Histo1DPtr> _h_vs, _h_hs;
-      Histo1DPtr _h_jetPt, _h_hadroPt, _h_delta, _h_sdjetPt;
+      Histo1DPtr _h_jetPt, _h_hadroPt, _h_delta, _h_sdjetPt, _h_rg, _h_zg;
       CounterPtr _njets;
 
   };
