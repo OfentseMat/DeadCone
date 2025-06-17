@@ -55,7 +55,7 @@ namespace Rivet {
      
       //histograms booking
       book(_h_2Dbjets, "bjets", histoSlice, XMin, XMax, histoSlice, Erad, MaxJetPt); 
-      book(_h_2Dlightjets, "lightjets", histoSlice , XMin, XMax, histoSlice, MinJetPt, MaxJetPt); 
+      book(_h_2Dlightjets, "lightjets", histoSlice , XMin, XMax, histoSlice, Erad, MaxJetPt); 
       book(_h_hadroPt, "hadron pT", histoSlice, XMin, MaxJetPt); 
       book(_h_jetPt, "Jet pT", histoSlice, MinJetPt, MaxJetPt); 
       book(_h_sdjetPt, "sd Jet pT", histoSlice, MinJetPt, MaxJetPt); 
@@ -201,7 +201,7 @@ namespace Rivet {
           //std::cout<<"kT: "<<kT<<std::endl;
           _h_2Dbjets->fill(X,E); //fill bjets lund plane
           _h_delta->fill(X); //fill bjets lund plane
-          //_h_2Dlightjets->fill(X,Y); //fill lightjets lund plane
+          //_h_2Dlightjets->fill(X,E); //fill lightjets lund plane
 
           double hdiv = (double)XMax/(double)slice;
           int i = floor(X/hdiv);
@@ -215,19 +215,21 @@ namespace Rivet {
         }  //end if statement
         if (X > XMin && X < XMax && Z > ZMin && Z < ZMax) {
           _h_2Dlund->fill(X,Z); //fill angular sep histo
-
         }
       } //end of declust for loop
     }  //end analyze() function
 
     void finalize() {
-      const double jetCounterW = _njets->sumW();
+      //std::cout<<"_njets: "<<_njets<<std::endl;
+      //const double jetCounterW = _njets->sumW();
       //YODA::Counter jetCounter = *_njets;
-      //std::cout<<"Number of jets: "<<jetCounterW<<std::endl;
+      //std::cout<<"jetCounterW: "<<jetCounterW<<std::endl;
+      //std::cout<<"sumW(): "<<sumW()<<std::endl;
 
       //normalize the histograms using x section
       //const double scaling = crossSection()/picobarn/sumW();
-      const double scaling = 1/jetCounterW;
+      //const double scaling = 1/jetCounterW;
+      const double scaling = 1/sumW();
       scale(_h_2Dbjets, scaling);
       scale(_h_2Dlightjets, scaling);
       scale(_h_2Dlund, scaling);
@@ -248,8 +250,6 @@ namespace Rivet {
       CounterPtr _njets;
 
   };
-
- 
 
   RIVET_DECLARE_PLUGIN(Lplane);
 
