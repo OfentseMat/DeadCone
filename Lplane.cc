@@ -21,23 +21,27 @@ namespace Rivet {
   public:
   //counter
   //int jetCounter = 0;
-  int slice = 20;
+  int slice = 20.0;
+  int slices = 10.0;
+  int sumfrac = 0.0;
+  int numjets = 0.0;
   double kTcut = 1*GeV;
   double jetR = 0.4;
   double XMin = 0.0;
-  double XMax = 4;
-  double YMin = -5;
+  double XMax = 4.0;
+  double YMin = -6;
   double YMIN = 0.0;
-  double ZMIN = 0;
-  double ZMAX = 6;
-  double YMax = 5;
+  double YMAX = 10.0;
+  double ZMIN = 0.0;
+  double ZMAX = 6.0;
+  double YMax = 6.0;
   double sdzg = 0.5;
   double ZMin = log(1/0.5);
   double ZMax = 8.6*log(1/0.5);
-  double Erad = 0*GeV;
-  double MinJetPt = 55*GeV;
+  double Erad = 10.8*GeV;
+  double MinJetPt = 30*GeV;
   double MaxJetPt = 100*GeV;
-  int histoSlice = 20;
+  int histoSlice = 20.0;
 
     /// Constructor
     RIVET_DEFAULT_ANALYSIS_CTOR(Lplane);
@@ -60,14 +64,16 @@ namespace Rivet {
       book(_h_jetPt, "Jet pT", histoSlice, MinJetPt, MaxJetPt); 
       book(_h_sdjetPt, "sd Jet pT", histoSlice, MinJetPt, MaxJetPt); 
       book(_h_delta, "delta", histoSlice, XMin, XMax);
+      book(_h_z, "z", histoSlice, ZMin, ZMax);
       book(_h_rg, "rg", histoSlice, XMin, XMax);
       book(_h_zg, "zg", histoSlice, ZMIN, sdzg);
-      book(_h_2Dlund, "lund", histoSlice, XMin, XMax, histoSlice, ZMIN, ZMAX); //Testing Leticia's method.
-      book(_njets, "njets");
+      book(_h_2Dlund, "lund", histoSlice, XMin, XMax, histoSlice, YMin, YMax); //Testing Leticia's method.
+      book(_njets, "_njets");
+      book(_h_entries, "entries", histoSlice, YMIN, YMAX);
  
       _h_vs.resize(slice);
       for (size_t i = 0; i < _h_vs.size(); ++i) {
-        book(_h_vs[i], "vs" + std::to_string(i), slice, ZMin, ZMax);
+        book(_h_vs[i], "vs" + std::to_string(i), slice, MinJetPt, MaxJetPt);
       }
       _h_hs.resize(slice);
       for (size_t j = 0; j < _h_hs.size(); ++j) {
@@ -114,7 +120,7 @@ namespace Rivet {
         //tag
         for (const Particle& p: bhadrons) {
           double hadroPt = p.pT();
-          if (hadroPt > 100*GeV) continue;
+          if (hadroPt < Erad) continue;
           if (deltaR(jet,p, PSEUDORAPIDITY) < jetR) {
             //std::cout<<"jet hadron pid: "<< abs(p.pid())<<std::endl;
             //std::cout<<"hadroPt: "<< hadroPt<< std::endl;
@@ -130,124 +136,153 @@ namespace Rivet {
       //std::cout<<"bjets.size(): "<< bjets.size()<<std::endl;    
       //std::cout<<"lightjets.size(): "<< lightjets.size()<<std::endl;
       
-      //make sure you have a bjet
-      if (bjets.size()< 1) vetoEvent;
+      /*//make sure you have a jet
+      //if (bjets.size() < 1) vetoEvent;
+      //if (lightjets.size() < 1) vetoEvent;
 
       //select leading jet
-      const Jet& j1 = bjets[0];
+      //const Jet& j1 = bjets[0];
+      const Jet& j1 = lightjets[0];
       _njets->fill(1); //count your 1 jet
       double jetPt = j1.pT();
+
+      //double jetPt = jet.pT();
       //std::cout<<"jetPt: "<< jetPt<<std::endl; 
-      _h_jetPt->fill(jetPt/ GeV);   
+      _h_jetPt->fill(jetPt/ GeV); */ 
+      for (const Jet& jet : bjets) {
+      //for (const Jet& jet : lightjets) {
+        double jetPt = jet.pT();
+        _h_jetPt->fill(jetPt/ GeV);
+        //define sd parameters
+        /*double z_cut = 0.20;
+        double beta  = 1.0;
+        fjcontrib::SoftDrop sd(beta, z_cut);
 
-      //define sd parameters
-      double z_cut = 0.10;
-      double beta  = 1.0;
-      fjcontrib::SoftDrop sd(beta, z_cut);
+        //groom
+        //PseudoJet sd_j1 = sd(j1);
+        PseudoJet sd_jet = sd(jet);
+        //double sdpT = sd_j1.pt();
+        double sdpT = sd_jet.pt();
 
-      //groom
-      PseudoJet sd_j1 = sd(j1);
-      double sdpT = sd_j1.pt();
+        //because soft drop is a groomer (not a tagger), it should always return a soft-dropped jet
+        //assert(sd_j1 != 0); 
+        assert(sd_jet != 0); 
+        _h_sdjetPt->fill(sdpT/ GeV);*/
+      
+        //tracks 
+        const Particles& tracks = apply<ChargedFinalState>(event, "tracks").particlesByPt();
+        Particles intracks;  //declare tracks container     
 
-      //because soft drop is a groomer (not a tagger), it should always return a soft-dropped jet
-      assert(sd_j1 != 0); 
-      _h_sdjetPt->fill(sdpT/ GeV);
-  
-      //tracks 
-      /*const Particles& tracks = apply<ChargedFinalState>(event, "tracks").particlesByPt();
-      Particles intracks;  //declare tracks container     
+        //analyse jet
 
-      //analyse jet
-
-      //find tracks in jet
-      for (const Particle& p: tracks){
-        const double dr = deltaR(sd_j1, p, PSEUDORAPIDITY);
-        if (dr > jetR) continue;
-        intracks.push_back(p);
-        //std::cout<<" Track PID: "<< p.pid()<<std::endl;
-      }
-      //std::cout<<"intracks.size(): "<<intracks.size()<<std::endl;
-      //Particles constituents = sd_j1.constituents;  //declare tracks container  
-
-
-      //re-cluster tracks with CA algorithm
-      JetDefinition tjet_def(fastjet::cambridge_algorithm, 10);
-      ClusterSequence tjet_cs(intracks, tjet_def);
-      vector<PseudoJet> tjets = fastjet::sorted_by_pt (tjet_cs.inclusive_jets(0.0));
-
-      if(tjets.size() < 1) vetoEvent;  //CA must return at least 1 jet
-      //std::cout<<"tjets.size(): " <<tjets.size()<< std::endl;*/
-      double rg = sd_j1.structure_of<fjcontrib::SoftDrop>().delta_R();
-      double zg = sd_j1.structure_of<fjcontrib::SoftDrop>().symmetry();
-      double rg_p = -log(rg);
-
-      _h_rg->fill(rg_p);
-      _h_zg->fill(zg);
-
-      //decluster jet with the lund generator
-      fjcontrib::LundGenerator lund; //declare lund generator
-      vector<fjcontrib::LundDeclustering> declusts = lund(sd_j1);  //decluster first pseudojet.
-      //std::cout<<"declusts.size(): "<< declusts.size()<<std::endl;
-      for (size_t idecl = 0; idecl < declusts.size(); ++idecl) {  //continue declustering jet till you reach core
-        pair<double,double> coords = declusts[idecl].lund_coordinates(); //find lund coordinates for each declustering step
-        double X = coords.first; //ln(1/theta))
-        double Y = coords.second; //this is actually ln(kt)
-        double Z = - log(declusts[idecl].z()); 
-        //double kT = declusts[idecl].kt();
-        double E = exp(X + Y + Z);  //radiator energy
-        
-        if (X > XMin && X < XMax && E > Erad && E < MaxJetPt) { 
-          //std::cout<<"E: "<<E<<std::endl;
-          //std::cout<<"kT: "<<kT<<std::endl;
-          _h_2Dbjets->fill(X,E); //fill bjets lund plane
-          _h_delta->fill(X); //fill bjets lund plane
-          //_h_2Dlightjets->fill(X,E); //fill lightjets lund plane
-
-          double hdiv = (double)XMax/(double)slice;
-          int i = floor(X/hdiv);
-         // std::cout<<"i: "<<i<<std::endl;
-          _h_vs[i]->fill(E);
-
-          double vdiv = (double)(MaxJetPt - Erad)/(double)slice;
-          int j = floor((E - Erad)/vdiv);
-          //std::cout<<"j: "<<j<<std::endl;
-          _h_hs[j]->fill(X);
-        }  //end if statement
-        if (X > XMin && X < XMax && Z > ZMin && Z < ZMax) {
-          _h_2Dlund->fill(X,Z); //fill angular sep histo
+        //find tracks in jet
+        for (const Particle& p: tracks){
+          const double dr = deltaR(jet, p, PSEUDORAPIDITY);
+          //const double dr = deltaR(j1, p, PSEUDORAPIDITY);
+          //const double dr = deltaR(sd_j1, p, PSEUDORAPIDITY);
+          if (dr > jetR) continue;
+          intracks.push_back(p);
+          //std::cout<<" Track PID: "<< p.pid()<<std::endl;
         }
-      } //end of declust for loop
+        //std::cout<<"intracks.size(): "<<intracks.size()<<std::endl;
+        //Particles constituents = sd_j1.constituents;  //declare tracks container  
+
+        //re-cluster tracks with CA algorithm
+        JetDefinition tjet_def(fastjet::cambridge_algorithm, 10);
+        ClusterSequence tjet_cs(intracks, tjet_def);
+        vector<PseudoJet> tjets = fastjet::sorted_by_pt (tjet_cs.inclusive_jets(0.0));
+
+        if(tjets.size() < 1) vetoEvent;  //CA must return at least 1 jet
+        //std::cout<<"tjets.size(): " <<tjets.size()<< std::endl;*/
+        //double rg = sd_j1.structure_of<fjcontrib::SoftDrop>().delta_R();
+        //double zg = sd_j1.structure_of<fjcontrib::SoftDrop>().symmetry();
+       /* double rg = sd_jet.structure_of<fjcontrib::SoftDrop>().delta_R();
+        double zg = sd_jet.structure_of<fjcontrib::SoftDrop>().symmetry();
+        double rg_p = -log(rg);
+
+        _h_rg->fill(rg_p);
+        _h_zg->fill(zg);*/
+
+        //decluster jet with the lund generator
+        fjcontrib::LundGenerator lund; //declare lund generator
+        //vector<fjcontrib::LundDeclustering> declusts = lund(sd_jet);  //decluster first pseudojet.
+        vector<fjcontrib::LundDeclustering> declusts = lund(tjets[0]); 
+        //std::cout <<"declusts.size(): "<< declusts.size()<<std::endl;
+        //sumfrac = sumfrac + declusts.size();
+        _h_entries->fill(declusts.size());
+        for (size_t idecl = 0; idecl < declusts.size(); ++idecl) {  //continue declustering jet till you reach core
+          pair<double,double> coords = declusts[idecl].lund_coordinates(); //find lund coordinates for each declustering step
+          double X = coords.first; //ln(1/theta))
+          double Y = coords.second; //this is actually ln(kt)
+          double Z = - log(declusts[idecl].z()); 
+          //double kT = declusts[idecl].kt();
+          double E = exp(X + Y + Z);  //radiator energy
+            
+          if (X > XMin && X < XMax && E > Erad && E < MaxJetPt) { 
+            //std::cout<<"E: "<<E<<std::endl;
+            //std::cout<<"kT: "<<kT<<std::endl;
+            _h_2Dbjets->fill(X,E); //fill bjets lund plane
+            _h_delta->fill(X); //fill bjets lund plane
+            //_h_2Dlightjets->fill(X,E); //fill lightjets lund plane
+
+            double hdiv = (double)XMax/(double)slice;
+            int i = floor(X/hdiv);
+            //std::cout<<"i: "<<i<<std::endl;
+            _h_vs[i]->fill(E);
+
+            double vdiv = (double)(MaxJetPt - Erad)/(double)slice;
+            int j = floor((E - Erad)/vdiv);
+            //std::cout<<"j: "<<j<<std::endl;
+            _h_hs[j]->fill(X);
+          }  //end if statement
+          if (X > XMin && X < XMax && Y > YMin && Y < YMax) {
+            _h_2Dlund->fill(X,Y); //fill angular sep histo
+          }
+        } //end of declust for loop
+        numjets++;
+        _njets->fill();
+      }
     }  //end analyze() function
 
     void finalize() {
       //std::cout<<"_njets: "<<_njets<<std::endl;
-      //const double jetCounterW = _njets->sumW();
-      //YODA::Counter jetCounter = *_njets;
+      //const double jetCounterW = _h_2Dlightjets->sumW();
+      const double jetCounterW = _h_2Dbjets->sumW();
+      const double entriesW = _njets->sumW();
+      const double Weight = 1/entriesW;
+      //const double jetCounterW = _h_2Dlund->sumW();
+      //std::cout<<"sumfrac: "<<sumfrac<<std::endl;
+      //double number = sumfrac / numjets;
+      //std::cout<<"numjets: "<<numjets<<std::endl;
+      //std::cout<<"number: "<<number<<std::endl;
       //std::cout<<"jetCounterW: "<<jetCounterW<<std::endl;
       //std::cout<<"sumW(): "<<sumW()<<std::endl;
 
       //normalize the histograms using x section
       //const double scaling = crossSection()/picobarn/sumW();
-      //const double scaling = 1/jetCounterW;
+      const double factor = 1/jetCounterW;
       const double scaling = 1/sumW();
-      scale(_h_2Dbjets, scaling);
-      scale(_h_2Dlightjets, scaling);
-      scale(_h_2Dlund, scaling);
-      scale(_h_vs, scaling);
-      scale(_h_hs, scaling);
+      scale(_h_2Dbjets, factor);
+      scale(_h_2Dlightjets, factor);
+      scale(_h_2Dlund, factor);
+      scale(_h_vs, factor);
+      scale(_h_hs, factor);
       scale(_h_jetPt, scaling);
       scale(_h_sdjetPt, scaling);
       scale(_h_hadroPt, scaling);
       scale(_njets, scaling);
       scale(_h_delta, scaling);
+      scale(_h_z, scaling);
       scale(_h_rg, scaling);
       scale(_h_zg, scaling);
+      scale(_h_entries, Weight);
     }
   	private:
       Histo2DPtr _h_2Dbjets, _h_2Dlightjets, _h_2Dlund;
       vector<Histo1DPtr> _h_vs, _h_hs;
-      Histo1DPtr _h_jetPt, _h_hadroPt, _h_delta, _h_sdjetPt, _h_rg, _h_zg;
+      Histo1DPtr _h_jetPt, _h_hadroPt, _h_delta, _h_sdjetPt, _h_rg, _h_zg, _h_z, _h_entries;
       CounterPtr _njets;
+      //int sumfrac, sumjets;
 
   };
 
